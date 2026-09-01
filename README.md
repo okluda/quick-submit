@@ -1,4 +1,4 @@
-# 快速網頁送出 0.1.2
+# 快速網頁送出 0.1.4
 
 ## 功能定位
 
@@ -47,3 +47,10 @@
 - 送出按鈕框選允許 disabled 與 aria-disabled 狀態，但實際轉跳或送出前仍要求元素已 Enable。
 - Side Panel 新增「取消框選（Esc）」；Side Panel 或目標網頁按 Esc 均可取消並重新框選。
 - 新增 PING 回應，避免每次操作重複嘗試注入 Content Script。
+
+
+#### 0.1.4 修正
+- 框選改用最高層級透明遮罩，所有選取行為由遮罩接收，再以 elementsFromPoint 反查底層元素。
+- 框選期間攔截 pointer、mouse、click、double click、context menu 及 form submit，避免設定時誤觸網頁操作或送出。
+- 完成選取後仍保留 600ms click/submit 防護，避免移除遮罩後的尾端事件落到原網頁。
+- 取消或完成框選時完整移除遮罩與暫時事件守門器，恢復網頁正常操作。

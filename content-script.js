@@ -1,5 +1,5 @@
 (()=>{if(globalThis.__quickSubmitLoaded)return;globalThis.__quickSubmitLoaded=true;
-let mode=null,slotIndex=null,current=null,box=null,tip=null,noticeTimer=null,lastPointerSelectionAt=0;
+let mode=null,slotIndex=null,current=null,box=null,tip=null,overlay=null,noticeTimer=null,lastPointerSelectionAt=0,guardTimer=null;
 const visible=e=>{if(!(e instanceof HTMLElement))return false;const s=getComputedStyle(e),r=e.getBoundingClientRect();return s.display!=="none"&&s.visibility!=="hidden"&&Number(s.opacity)!==0&&r.width>0&&r.height>0;};
 const clean=v=>String(v||"").replace(/\s+/g," ").trim().slice(0,80);
 function ui(){box=document.getElementById("quick-submit-highlight")||document.body.appendChild(Object.assign(document.createElement("div"),{id:"quick-submit-highlight"}));tip=document.getElementById("quick-submit-tooltip")||document.body.appendChild(Object.assign(document.createElement("div"),{id:"quick-submit-tooltip"}));}
@@ -7,13 +7,64 @@ function selector(e){if(e.id){const q="#"+CSS.escape(e.id);if(document.querySele
 function label(e){if(e.labels?.length)return clean(e.labels[0].textContent);return clean(e.getAttribute("aria-label")||e.getAttribute("title")||e.getAttribute("placeholder")||e.getAttribute("name")||e.textContent)||"未命名元素";}
 function kind(e){if(e instanceof HTMLSelectElement)return "select";if(e instanceof HTMLTextAreaElement)return "text";if(e instanceof HTMLInputElement){const t=(e.type||"text").toLowerCase();if(["text","email","number","tel","url","search"].includes(t))return t==="number"?"number":"text";}if(e instanceof HTMLButtonElement||e.getAttribute?.("role")==="button")return "button";return null;}
 function candidate(start,submit){const q=submit?'button,input[type="button"],input[type="submit"],[role="button"]':'input,textarea,select,button,[role="button"]';const e=start instanceof Element?start.closest(q):null;if(!e||!visible(e))return null;if(submit){return (e instanceof HTMLButtonElement||(e instanceof HTMLInputElement&&["button","submit"].includes(e.type))||e.getAttribute("role")==="button")?e:null;}if(e.disabled||e.getAttribute("aria-disabled")==="true")return null;const k=kind(e);if(k==="button"||e.getAttribute("role")==="button")return e;return k?e:null;}
+function candidateFromPoint(x,y,submit){
+  if(overlay)overlay.style.pointerEvents="none";
+  const stack=document.elementsFromPoint(x,y);
+  if(overlay)overlay.style.pointerEvents="auto";
+  const q=submit?'button,input[type="button"],input[type="submit"],[role="button"]':'input,textarea,select,button,[role="button"]';
+  for(const raw of stack){
+    const e=raw.closest?.(q);
+    if(!e||e===overlay||!visible(e))continue;
+    if(submit){
+      if(e instanceof HTMLButtonElement||(e instanceof HTMLInputElement&&["button","submit"].includes(e.type))||e.getAttribute("role")==="button")return e;
+      continue;
+    }
+    const k=kind(e);
+    if(!k)continue;
+    if(k!=="button"&&(e.disabled||e.getAttribute("aria-disabled")==="true"))continue;
+    return e;
+  }
+  return null;
+}
+function blockPageEvent(ev){
+  if(!mode&&!guardTimer)return;
+  ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
+}
+function installGuards(){
+  clearTimeout(guardTimer);guardTimer=null;
+  document.addEventListener("click",blockPageEvent,true);
+  document.addEventListener("dblclick",blockPageEvent,true);
+  document.addEventListener("submit",blockPageEvent,true);
+}
+function removeGuards(delay=0){
+  const remove=()=>{document.removeEventListener("click",blockPageEvent,true);document.removeEventListener("dblclick",blockPageEvent,true);document.removeEventListener("submit",blockPageEvent,true);guardTimer=null;};
+  clearTimeout(guardTimer);
+  if(delay)guardTimer=setTimeout(remove,delay);else remove();
+}
+function removeOverlay(){overlay?.remove();overlay=null;}
+function createOverlay(){
+  removeOverlay();installGuards();
+  overlay=document.createElement("div");overlay.id="quick-submit-selection-overlay";overlay.tabIndex=0;overlay.setAttribute("aria-label","框選模式，按 Escape 取消");
+  overlay.addEventListener("pointermove",ev=>{const e=candidateFromPoint(ev.clientX,ev.clientY,mode==="submit");if(e)position(e,(mode==="submit"?"送出按鈕｜":"操作元素｜")+label(e),mode==="submit"?"#8764b8":"#0f6cbd");else hide();});
+  overlay.addEventListener("pointerdown",ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();selectFromPoint(ev.clientX,ev.clientY);},true);
+  for(const t of ["pointerup","mousedown","mouseup","click","dblclick","contextmenu"]){overlay.addEventListener(t,ev=>{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();},true);}
+  overlay.addEventListener("keydown",ev=>{if(ev.key==="Escape"){ev.preventDefault();ev.stopPropagation();stop(true);}},true);
+  overlay.addEventListener("wheel",ev=>{ev.preventDefault();window.scrollBy({left:ev.deltaX,top:ev.deltaY,behavior:"auto"});},{passive:false});
+  document.documentElement.appendChild(overlay);overlay.focus({preventScroll:true});
+}
 function position(e,text,color="#0f6cbd"){ui();current=e;const r=e.getBoundingClientRect();box.style.cssText+=`;left:${r.left-3}px;top:${r.top-3}px;width:${r.width+6}px;height:${r.height+6}px;display:block;border-color:${color}`;tip.textContent=text;tip.style.display="block";tip.style.background=color;requestAnimationFrame(()=>{const tr=tip.getBoundingClientRect();tip.style.left=Math.max(8,Math.min(r.left,innerWidth-tr.width-8))+"px";tip.style.top=(r.top-tr.height-8>8?r.top-tr.height-8:r.bottom+8)+"px";});}
 function hide(){current=null;if(box)box.style.display="none";if(tip)tip.style.display="none";}
-function stop(send=true){document.removeEventListener("mousemove",move,true);document.removeEventListener("pointerdown",pointerdown,true);document.removeEventListener("click",click,true);document.removeEventListener("keydown",key,true);document.removeEventListener("keyup",key,true);hide();const old=mode;mode=null;slotIndex=null;if(send&&old)chrome.runtime.sendMessage({type:"SELECTION_CANCELLED"}).catch(()=>{});}
+function stop(send=true,deferGuards=false){document.removeEventListener("mousemove",move,true);document.removeEventListener("pointerdown",pointerdown,true);document.removeEventListener("click",click,true);document.removeEventListener("keydown",key,true);document.removeEventListener("keyup",key,true);removeOverlay();hide();const old=mode;mode=null;slotIndex=null;removeGuards(deferGuards?600:0);if(send&&old)chrome.runtime.sendMessage({type:"SELECTION_CANCELLED"}).catch(()=>{});}
 function move(ev){const e=candidate(ev.target,mode==="submit");if(e)position(e,(mode==="submit"?"送出按鈕｜":"操作元素｜")+label(e),mode==="submit"?"#8764b8":"#0f6cbd");else hide();}
+function selectFromPoint(x,y){
+  if(!mode)return;const e=candidateFromPoint(x,y,mode==="submit");if(!e)return;const sel=selector(e);if(!sel){position(e,"無法建立唯一定位","#a4262c");return;}
+  const k=kind(e);const data={id:crypto.randomUUID(),name:label(e),kind:k,selector:sel,pageUrl:location.href,disabledAtSelection:Boolean(e.disabled||e.getAttribute("aria-disabled")==="true"),options:k==="select"?[...e.options].map(o=>({value:o.value,text:clean(o.textContent)})):[]};
+  if(k==="button"){const childSig=[...e.querySelectorAll("i,span,svg,use")].map(n=>[n.className?.baseVal||n.className||"",n.getAttribute("href")||"",n.getAttribute("xlink:href")||"",n.getAttribute("data-icon")||""].join(" ")).join(" ");const sig=clean([e.getAttribute("aria-label"),e.getAttribute("title"),e.getAttribute("data-action"),e.getAttribute("data-testid"),e.textContent,e.className,childSig].join(" ")).toLowerCase();data.kind=/(^|[^a-z])(minus|remove|decrement|subtract)([^a-z]|$)|減少|減號|扣除|^-$/.test(sig)?"decrement":"increment";}
+  const type=mode==="submit"?"SUBMIT_SELECTED":"OPERATION_SELECTED";const index=slotIndex;stop(false,true);chrome.runtime.sendMessage({type,payload:{...data,slotIndex:index}}).catch(()=>{});
+}
 function selectFromEvent(ev){if(!mode)return;const e=candidate(ev.target,mode==="submit");if(!e)return;ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();lastPointerSelectionAt=Date.now();const s=selector(e);if(!s){position(e,"無法建立唯一定位","#a4262c");return;}const k=kind(e);const data={id:crypto.randomUUID(),name:label(e),kind:k,selector:s,pageUrl:location.href,disabledAtSelection:Boolean(e.disabled||e.getAttribute("aria-disabled")==="true"),options:k==="select"?[...e.options].map(o=>({value:o.value,text:clean(o.textContent)})):[]};if(k==="button"){const childSig=[...e.querySelectorAll("i,span,svg,use")].map(n=>[n.className?.baseVal||n.className||"",n.getAttribute("href")||"",n.getAttribute("xlink:href")||"",n.getAttribute("data-icon")||""].join(" ")).join(" ");const sig=clean([e.getAttribute("aria-label"),e.getAttribute("title"),e.getAttribute("data-action"),e.getAttribute("data-testid"),e.textContent,e.className,childSig].join(" ")).toLowerCase();data.kind=/(^|[^a-z])(minus|remove|decrement|subtract)([^a-z]|$)|減少|減號|扣除|^-$/.test(sig)?"decrement":"increment";}const type=mode==="submit"?"SUBMIT_SELECTED":"OPERATION_SELECTED";const index=slotIndex;stop(false);chrome.runtime.sendMessage({type,payload:{...data,slotIndex:index}}).catch(()=>{});}function pointerdown(ev){selectFromEvent(ev);}function click(ev){if(Date.now()-lastPointerSelectionAt<500)return;selectFromEvent(ev);}
 function key(ev){if(ev.key==="Escape")stop(true);}
-function start(nextMode,index){stop(false);mode=nextMode;slotIndex=index;ui();document.addEventListener("mousemove",move,true);document.addEventListener("pointerdown",pointerdown,true);document.addEventListener("click",click,true);document.addEventListener("keydown",key,true);document.addEventListener("keyup",key,true);}
+function start(nextMode,index){stop(false);mode=nextMode;slotIndex=index;ui();createOverlay();}
 function find(loc){let m;try{m=document.querySelectorAll(loc.selector);}catch{return{status:"invalid-selector"};}if(m.length!==1)return{status:m.length?"multiple":"not-found",matchCount:m.length};return{status:"valid",element:m[0],matchCount:1};}
 function setValue(e,v){const proto=e instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;const d=Object.getOwnPropertyDescriptor(proto,"value");d?.set?d.set.call(e,String(v)):e.value=String(v);e.dispatchEvent(new Event("input",{bubbles:true,composed:true}));e.dispatchEvent(new Event("change",{bubbles:true,composed:true}));}
 async function execute(op,value,executionId){const f=find(op);if(f.status!=="valid")return{status:f.status,matchCount:f.matchCount};const e=f.element;if(!visible(e)||e.disabled)return{status:"unavailable"};if(op.kind==="text"||op.kind==="number"){setValue(e,value);return{status:e.value===String(value)?"success":"mismatch"};}if(op.kind==="select"){const option=[...e.options].find(o=>o.value===value)||[...e.options].find(o=>clean(o.textContent)===value);if(!option)return{status:"option-not-found"};e.value=option.value;e.dispatchEvent(new Event("input",{bubbles:true}));e.dispatchEvent(new Event("change",{bubbles:true}));return{status:e.value===option.value?"success":"mismatch"};}if(op.kind==="increment"||op.kind==="decrement"){const count=Number(value);if(!Number.isInteger(count)||count<0||count>50)return{status:"invalid-count"};for(let i=0;i<count;i++){const again=find(op);if(again.status!=="valid"||!visible(again.element)||again.element.disabled)return{status:"button-unavailable",completedCount:i};again.element.click();await new Promise(r=>setTimeout(r,120));}return{status:"success",completedCount:count};}return{status:"unsupported"};}
