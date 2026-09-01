@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>快速網頁送出</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <div><h1>快速網頁送出</h1><p id="targetSummary">尚未設定目標網頁</p></div>
+      <button id="toggleSetupButton" class="text-button" type="button">設定</button>
+    </header>
+
+    <section class="card operation-card" aria-labelledby="operationTitle">
+      <div class="section-header"><h2 id="operationTitle">快速操作</h2><span id="readyBadge" class="badge idle">未就緒</span></div>
+      <div id="operationList" class="operation-list"></div>
+      <button id="focusSubmitButton" class="secondary full" type="button">只轉跳到送出鈕</button>
+      <p id="operationStatus" class="status" role="status">請先完成目標網頁、操作元素及送出按鈕設定。</p>
+    </section>
+
+    <section id="setupSection" class="card setup-card" aria-labelledby="setupTitle">
+      <div class="section-header"><h2 id="setupTitle">設定</h2><span id="setupBadge" class="badge idle">未完成</span></div>
+
+      <div class="setting-block">
+        <div class="setting-title"><strong>目標網頁</strong><span id="targetBadge" class="badge idle">未設定</span></div>
+        <p id="targetDetails" class="details">使用目前分頁建立設定。</p>
+        <div class="button-grid"><button id="setTargetButton" class="primary" type="button">使用目前分頁</button><button id="clearTargetButton" class="secondary" type="button">清除</button></div>
+      </div>
+
+      <div class="setting-block">
+        <div class="setting-title"><strong>快速操作方案</strong><span class="badge info">預設 5 組</span></div>
+        <div id="slotSetupList" class="slot-setup-list"></div>
+      </div>
+
+      <div class="setting-block">
+        <div class="setting-title"><strong>送出按鈕</strong><span id="submitBadge" class="badge idle">未設定</span></div>
+        <p id="submitDetails" class="details">尚未框選送出按鈕。</p>
+        <div class="button-grid"><button id="selectSubmitButton" class="primary" type="button">框選送出按鈕</button><button id="testSubmitButton" class="secondary" type="button">測試</button></div>
+      </div>
+
+      <button id="finishSetupButton" class="primary full" type="button">完成設定</button>
+      <p id="setupStatus" class="status" role="status">設定元素時，請到目標網頁點選元素；按 Esc 可取消。</p>
+    </section>
+
+    <footer>快速網頁送出 0.1.0</footer>
+  </main>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
