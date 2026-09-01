@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "快速網頁送出",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "設定互斥的快速操作方案，單獨執行後跳轉至送出按鈕。",
   "minimum_chrome_version": "114",
   "permissions": [
