@@ -1,4 +1,4 @@
-# 快速網頁送出 0.1.4
+# 快速網頁送出 0.1.5
 
 ## 功能定位
 
@@ -54,3 +54,10 @@
 - 框選期間攔截 pointer、mouse、click、double click、context menu 及 form submit，避免設定時誤觸網頁操作或送出。
 - 完成選取後仍保留 600ms click/submit 防護，避免移除遮罩後的尾端事件落到原網頁。
 - 取消或完成框選時完整移除遮罩與暫時事件守門器，恢復網頁正常操作。
+
+
+##### 0.1.5 修正
+- disabled 元素若因 pointer-events:none 未出現在 elementsFromPoint 結果，改以 getBoundingClientRect 幾何範圍備援定位。
+- 幾何候選掃描目前網頁所有可見按鈕，再選取游標座標所在且面積最精確的元素。
+- Selector 優先使用 nextBtn 等穩定 class，排除 v-btn--disabled、disabledBtn、theme 與 elevation 狀態 class。
+- 保留最高層遮罩、事件攔截、表單 submit 防護與 Esc 取消。

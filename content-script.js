@@ -3,29 +3,14 @@ let mode=null,slotIndex=null,current=null,box=null,tip=null,overlay=null,noticeT
 const visible=e=>{if(!(e instanceof HTMLElement))return false;const s=getComputedStyle(e),r=e.getBoundingClientRect();return s.display!=="none"&&s.visibility!=="hidden"&&Number(s.opacity)!==0&&r.width>0&&r.height>0;};
 const clean=v=>String(v||"").replace(/\s+/g," ").trim().slice(0,80);
 function ui(){box=document.getElementById("quick-submit-highlight")||document.body.appendChild(Object.assign(document.createElement("div"),{id:"quick-submit-highlight"}));tip=document.getElementById("quick-submit-tooltip")||document.body.appendChild(Object.assign(document.createElement("div"),{id:"quick-submit-tooltip"}));}
-function selector(e){if(e.id){const q="#"+CSS.escape(e.id);if(document.querySelectorAll(q).length===1)return q;}const name=e.getAttribute("name");if(name){const q=e.tagName.toLowerCase()+"[name=\""+CSS.escape(name)+"\"]";try{if(document.querySelectorAll(q).length===1)return q;}catch{}}const parts=[];let n=e;while(n&&n!==document.documentElement){let p=n.tagName.toLowerCase();const siblings=n.parentElement?[...n.parentElement.children].filter(x=>x.tagName===n.tagName):[];if(siblings.length>1)p+=`:nth-of-type(${siblings.indexOf(n)+1})`;parts.unshift(p);const q=parts.join(" > ");if(document.querySelectorAll(q).length===1)return q;n=n.parentElement;}return "";}
+function selector(e){if(e.id){const q="#"+CSS.escape(e.id);if(document.querySelectorAll(q).length===1)return q;}for(const a of ["name","data-testid","data-test","data-cy"]){const v=e.getAttribute(a);if(!v)continue;const q=e.tagName.toLowerCase()+`[${a}="${CSS.escape(v)}"]`;try{if(document.querySelectorAll(q).length===1)return q;}catch{}}const stableClasses=[...e.classList].filter(c=>!/^v-|^theme--|^disabled|^elevation-|--disabled$|^active$|^focus$|^hover$/.test(c));for(const c of stableClasses){const q=e.tagName.toLowerCase()+"."+CSS.escape(c);try{if(document.querySelectorAll(q).length===1)return q;}catch{}}const parts=[];let n=e;while(n&&n!==document.documentElement){let part=n.tagName.toLowerCase();const stable=[...n.classList].filter(c=>!/^v-|^theme--|^disabled|^elevation-|--disabled$|^active$|^focus$|^hover$/.test(c)).slice(0,1);if(stable.length)part+="."+CSS.escape(stable[0]);const siblings=n.parentElement?[...n.parentElement.children].filter(x=>x.tagName===n.tagName):[];if(siblings.length>1)part+=`:nth-of-type(${siblings.indexOf(n)+1})`;parts.unshift(part);const q=parts.join(" > ");try{if(document.querySelectorAll(q).length===1)return q;}catch{}n=n.parentElement;}return "";}
 function label(e){if(e.labels?.length)return clean(e.labels[0].textContent);return clean(e.getAttribute("aria-label")||e.getAttribute("title")||e.getAttribute("placeholder")||e.getAttribute("name")||e.textContent)||"未命名元素";}
 function kind(e){if(e instanceof HTMLSelectElement)return "select";if(e instanceof HTMLTextAreaElement)return "text";if(e instanceof HTMLInputElement){const t=(e.type||"text").toLowerCase();if(["text","email","number","tel","url","search"].includes(t))return t==="number"?"number":"text";}if(e instanceof HTMLButtonElement||e.getAttribute?.("role")==="button")return "button";return null;}
 function candidate(start,submit){const q=submit?'button,input[type="button"],input[type="submit"],[role="button"]':'input,textarea,select,button,[role="button"]';const e=start instanceof Element?start.closest(q):null;if(!e||!visible(e))return null;if(submit){return (e instanceof HTMLButtonElement||(e instanceof HTMLInputElement&&["button","submit"].includes(e.type))||e.getAttribute("role")==="button")?e:null;}if(e.disabled||e.getAttribute("aria-disabled")==="true")return null;const k=kind(e);if(k==="button"||e.getAttribute("role")==="button")return e;return k?e:null;}
-function candidateFromPoint(x,y,submit){
-  if(overlay)overlay.style.pointerEvents="none";
-  const stack=document.elementsFromPoint(x,y);
-  if(overlay)overlay.style.pointerEvents="auto";
-  const q=submit?'button,input[type="button"],input[type="submit"],[role="button"]':'input,textarea,select,button,[role="button"]';
-  for(const raw of stack){
-    const e=raw.closest?.(q);
-    if(!e||e===overlay||!visible(e))continue;
-    if(submit){
-      if(e instanceof HTMLButtonElement||(e instanceof HTMLInputElement&&["button","submit"].includes(e.type))||e.getAttribute("role")==="button")return e;
-      continue;
-    }
-    const k=kind(e);
-    if(!k)continue;
-    if(k!=="button"&&(e.disabled||e.getAttribute("aria-disabled")==="true"))continue;
-    return e;
-  }
-  return null;
-}
+function isSubmitCandidate(e){return e instanceof HTMLButtonElement||(e instanceof HTMLInputElement&&["button","submit"].includes(e.type))||e.getAttribute?.("role")==="button";}
+function containsPoint(e,x,y){const r=e.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom&&r.width>0&&r.height>0;}
+function geometricCandidates(x,y,submit){const q=submit?'button,input[type="button"],input[type="submit"],[role="button"]':'input,textarea,select,button,[role="button"]';return [...document.querySelectorAll(q)].filter(e=>e!==overlay&&visible(e)&&containsPoint(e,x,y)).filter(e=>submit?isSubmitCandidate(e):(kind(e)==="button"||!(e.disabled||e.getAttribute("aria-disabled")==="true"))).sort((a,b)=>{if(a.contains(b))return 1;if(b.contains(a))return -1;const ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();return(ra.width*ra.height)-(rb.width*rb.height);});}
+function candidateFromPoint(x,y,submit){if(overlay)overlay.style.pointerEvents="none";let stack=[];try{stack=document.elementsFromPoint(x,y);}finally{if(overlay)overlay.style.pointerEvents="auto";}const q=submit?'button,input[type="button"],input[type="submit"],[role="button"]':'input,textarea,select,button,[role="button"]';for(const raw of stack){const e=raw.closest?.(q);if(!e||e===overlay||!visible(e))continue;if(submit){if(isSubmitCandidate(e))return e;continue;}const k=kind(e);if(!k)continue;if(k!=="button"&&(e.disabled||e.getAttribute("aria-disabled")==="true"))continue;return e;}return geometricCandidates(x,y,submit)[0]||null;}
 function blockPageEvent(ev){
   if(!mode&&!guardTimer)return;
   ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
