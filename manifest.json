@@ -1,12 +1,27 @@
 {
   "manifest_version": 3,
   "name": "快速網頁送出",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "設定互斥的快速操作方案，單獨執行後跳轉至送出按鈕。",
   "minimum_chrome_version": "114",
-  "permissions": ["sidePanel", "activeTab", "scripting", "storage", "tabs"],
-  "host_permissions": ["http://*/*", "https://*/*"],
-  "action": { "default_title": "開啟快速網頁送出" },
-  "background": { "service_worker": "service-worker.js" },
-  "side_panel": { "default_path": "sidepanel.html" }
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_title": "開啟快速網頁送出"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
 }

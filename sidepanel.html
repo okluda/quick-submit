@@ -15,8 +15,9 @@
 
     <section class="card operation-card" aria-labelledby="operationTitle">
       <div class="section-header"><h2 id="operationTitle">快速操作</h2><span id="readyBadge" class="badge idle">未就緒</span></div>
+      <button id="refreshPageButton" class="secondary full" type="button">刷新頁面</button>
+      <button id="focusSubmitButton" class="secondary full" type="button">只跳轉到送出鈕</button>
       <div id="operationList" class="operation-list"></div>
-      <button id="focusSubmitButton" class="secondary full" type="button">只轉跳到送出鈕</button>
       <p id="operationStatus" class="status" role="status">請先完成目標網頁、操作元素及送出按鈕設定。</p>
     </section>
 
@@ -30,21 +31,22 @@
       </div>
 
       <div class="setting-block">
-        <div class="setting-title"><strong>快速操作方案</strong><span class="badge info">預設 5 組</span></div>
-        <div id="slotSetupList" class="slot-setup-list"></div>
-      </div>
-
-      <div class="setting-block">
         <div class="setting-title"><strong>送出按鈕</strong><span id="submitBadge" class="badge idle">未設定</span></div>
         <p id="submitDetails" class="details">尚未框選送出按鈕。</p>
         <div class="button-grid"><button id="selectSubmitButton" class="primary" type="button">框選送出按鈕</button><button id="testSubmitButton" class="secondary" type="button">測試</button></div>
+      </div>
+
+
+      <div class="setting-block">
+        <div class="setting-title"><strong>快速操作方案</strong><span class="badge info">預設 5 組</span></div>
+        <div id="slotSetupList" class="slot-setup-list"></div>
       </div>
 
       <button id="finishSetupButton" class="primary full" type="button">完成設定</button>
       <p id="setupStatus" class="status" role="status">設定元素時，請到目標網頁點選元素；按 Esc 可取消。</p>
     </section>
 
-    <footer>快速網頁送出 0.1.0</footer>
+    <footer>快速網頁送出 0.1.1</footer>
   </main>
   <script src="sidepanel.js"></script>
 </body>
